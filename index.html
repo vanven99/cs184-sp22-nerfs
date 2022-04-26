@@ -1,17 +1,73 @@
-﻿<!DOCTYPE html>
-
-<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 <head>
-    <meta charset="utf-8" />
-    <title></title>
+<style>
+  body {
+    padding: 100px;
+    width: 1000px;
+    margin: auto;
+    text-align: left;
+    font-weight: 300;
+    font-family: 'Open Sans', sans-serif;
+    color: #121212;
+  }
+  h1, h2, h3, h4 {
+    font-family: 'Source Sans Pro', sans-serif;
+  }
+</style>
+<title>Final Project Milestone</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link href="https://fonts.googleapis.com/css?family=Open+Sans|Source+Sans+Pro" rel="stylesheet">
 </head>
+
+
 <body>
-    <h1>Neural Radiance Fields (NeRFs)</h1>
-    <p>Team: Abhik Ahuja, Cyrus Hamirani, Michael Van Luven, Gavin Fure</p>
 
-    <a href="/Proposal/index.html">Proposal</a>
-    <a href="/Milestone/index.html">Milestone</a>
+<h1 align="middle">Neural Radiance Field with Virtual Reality</h1>
+<h2 align="middle">Team Members: Abhik Ahuja, Cyrus Hamirani, Michael Van Luven, Gavin Fure</h2>
 
-    
+<br><br>
+
+<div>
+
+<p>
+  <a href="https://github.com/bmild/nerf">Replace with link to slides</a><br>
+  <a href="https://github.com/bmild/nerf">Replace with link to video</a><br>
+</p>
+
+<h2 align="middle">Progress Update</h2>
+<p>
+  Currently we have chosen the tools to develop this project, and we have the individual components ready for testing. All that is necessary for a working demo is the completion of the named pipe to connect the VR headset to the NeRF output.</p>
+<p>To obtain the headset coordinates and render an image to the headset we are using pyOpenVR, which is the OpenVR SDK with Python additions. The NeRF images are rendered using Instant-NGP, which was recommended by course staff due to its speed in training and rendering. To link the two programs we have decided to use named pipes, which will circumvent the need to store images onto the user’s drive.</p>
+
+<h2 align="middle">Preliminary Results</h2>
+
+<p>
+  The most powerful GPU our team possesses is a NVIDIA 1080, well short of the recommended GPU for rendering nerfs. This means that we suspect our demo will be incapable of meeting the 2160 x 1200 @ 90 fps goal set at the proposal. Rendering one of the sample scenes yields approximately .1 fps during training, and around 25 fps when training is complete.
+</p>
+<p>
+   In addition to the base rendering cost for NeRFs, for every update to the VR headset we will need to render two images, one for each screen. This is something we anticipated, and for our final demo we plan on increasing the fps at the cost of resolution.
+</p>
+
+
+<h2 align="middle">Difficulties</h2>
+
+<p>
+Part of the difficulty that came from working on this project was a lack of functional software and hardware for each team member. Currently only one member (Cyrus) possesses a working VR headset and a computer capable of running Instant-NGP. This problem has made it difficult to multi-task, rather requiring the entire team to be present to make progress.
+</p>
+<p>
+An additional element of difficulty that hindered our development was the multitude of options present while selecting what software to work with. We tested OpenVR, Unity, and pyOpenVR before selecting pyOpenVR for its ease of access. Choosing which NeRF was also difficult as PlenoCTree and Instant-NGP both have their benefits and drawbacks.
+</p>
+
+<h2 align="middle">Work Plan Update</h2>
+
+<p>
+Because of these roadblocks, we haven’t been able to accomplish as much as we desired by this point. At this point we expected to have a working demo with multiple trained scenes, but the setbacks from software bottlenecks caused us to be behind track.
+</p>
+<p>
+However now that we have a focused plan and tools that we are becoming experienced with we hope to deliver most of what we initially proposed. We are going to update our final goals to be two trained hemispherical scenes with controls to modify the input image, mapped to the VR headset in stereo-imaging.
+</p>
+
+
 </body>
 </html>
