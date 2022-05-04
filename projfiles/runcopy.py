@@ -367,11 +367,13 @@ if __name__ == "__main__":
 					#input_array = input("camera matrix")
 					camera_matrix = camera_coord_array.reshape((3, 4))
 					rotation_matrix = np.matmul([[1, 0, 0],
-					                             [0, -1, 0],
+					                             [0, 1, 0],
 												 [0, 0, -1]], camera_matrix[0:3, 0:3])
 					final_matrix = np.hstack((rotation_matrix, camera_matrix[:, [3]]))
 					testbed.set_nerf_camera_matrix(final_matrix)
+					
 					image = testbed.render(args.width, args.height, args.screenshot_spp, True)
+					
 					if os.path.dirname(outname) != "":
 						os.makedirs(os.path.dirname(outname), exist_ok=True)
 					#write_image(outname + str(i) + "vr_camera "+ ".png", image)
@@ -385,7 +387,6 @@ if __name__ == "__main__":
 					img = (np.clip(img, 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8)
 					#write bytes to pipe
 					win32file.WriteFile(pipe_to_vr, bytes(img))
-
 
 			print("finished now")
 			win32file.CloseHandle(pipe_to_vr)

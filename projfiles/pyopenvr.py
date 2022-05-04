@@ -105,35 +105,61 @@ def main():
 
     poses = []
 
-    #create test overlay
-    test = overlay.createOverlay("test", "test")
-    overlay.showOverlay(test)
-    matrix = openvr.HmdMatrix34_t()
-    matrix.m[0][0] = 1
-    matrix.m[0][1] = 0
-    matrix.m[0][2] = 0
-    matrix.m[0][3] = .12
+    #create overlays
+    right_overlay = overlay.createOverlay("right", "right")
+    overlay.showOverlay(right_overlay)
+    #left_overlay = overlay.createOverlay("left", "left")
+    #overlay.showOverlay(left_overlay)
+    
+    #define overlay transform matrices
+    right_matrix = openvr.HmdMatrix34_t()
+    right_matrix.m[0][0] = 1
+    right_matrix.m[0][1] = 0
+    right_matrix.m[0][2] = 0
+    right_matrix.m[0][3] = .12
 
-    matrix.m[1][0] = 0
-    matrix.m[1][1] = 1
-    matrix.m[1][2] = 0
-    matrix.m[1][3] = 0.08
+    right_matrix.m[1][0] = 0
+    right_matrix.m[1][1] = 1
+    right_matrix.m[1][2] = 0
+    right_matrix.m[1][3] = 0.08
 
-    matrix.m[2][0] = 0.0
-    matrix.m[2][1] = 0.0
-    matrix.m[2][2] = 1.0
-    matrix.m[2][3] = -.3
+    right_matrix.m[2][0] = 0.0
+    right_matrix.m[2][1] = 0.0
+    right_matrix.m[2][2] = 1.0
+    right_matrix.m[2][3] = -.3
+    
+    left_matrix = openvr.HmdMatrix34_t()
+    left_matrix.m[0][0] = 1
+    left_matrix.m[0][1] = 0
+    left_matrix.m[0][2] = 0
+    left_matrix.m[0][3] = -.12
+
+    left_matrix.m[1][0] = 0
+    left_matrix.m[1][1] = 1
+    left_matrix.m[1][2] = 0
+    left_matrix.m[1][3] = 0.08
+
+    left_matrix.m[2][0] = 0.0
+    left_matrix.m[2][1] = 0.0
+    left_matrix.m[2][2] = 1.0
+    left_matrix.m[2][3] = -.3
+
     while True:
         #send pipe coords
         vr_server_send_coords(vr_server_handle)
         #read from pipe
         png_bytes = vr_client_read_image(vr_client_handle)
         left_texture, right_texture = get_overlay_texture_from_bytes(png_bytes, 100, 100)
-        overlay.setOverlayTransformTrackedDeviceRelative(test, 0, matrix)
+        #overlay.setOverlayFlag(right_overlay, VROverlayFlags.SideBySide_Parallel, True);
+
+        overlay.setOverlayTransformTrackedDeviceRelative(right_overlay, 0, right_matrix)
+        #overlay.setOverlayTransformTrackedDeviceRelative(left_overlay, 0, left_matrix)
         poses, _ = openvr.VRCompositor().waitGetPoses(poses, None)
         
         #render_frame(left_texture, right_texture)
-        overlay.setOverlayTexture(test, left_texture)
+        #set overlay texture
+        overlay.setOverlayTexture(right_overlay, right_texture)
+        #overlay.setOverlayTexture(left_overlay, left_texture)
         time.sleep(.01)
         openvr.VRCompositor().clearLastSubmittedFrame()
 
