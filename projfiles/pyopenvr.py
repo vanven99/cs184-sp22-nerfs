@@ -8,10 +8,28 @@ import texture
 
 #Pipe code for interprocess communication: Images NOT supported yet, still figuring out how to recover
 #PNG images from bytes and display them to the vive
+def vr_server_setup():
+    pipe = win32pipe.CreateNamedPipe(
+    r'\\.\pipe\VR_SERVER',
+    win32pipe.PIPE_ACCESS_DUPLEX,
+    win32pipe.PIPE_TYPE_MESSAGE | win32pipe.PIPE_READMODE_MESSAGE | win32pipe.PIPE_WAIT,
+    1, 65536, 65536,
+    0,
+    None)
+    return pipe
 
+def vr_server_send_coords(handle):
+    poses = []
+    poses, _ = openvr.VRCompositor().waitGetPoses(poses, None)
+    hmd_pose = poses[openvr.k_unTrackedDeviceIndex_Hmd]
+    print(hmd_pose.mDeviceToAbsoluteTracking)
+    
+    print(type(hmd_pose.mDeviceToAbsoluteTracking[0][0]))
+    win32file.WriteFile(handle, bytes(hmd_pose.mDeviceToAbsoluteTracking))
+    
 def vr_client_setup():
     handle = win32file.CreateFile(
-                r'\\.\pipe\Foo',
+                r'\\.\pipe\NGP_SERVER',
                 win32file.GENERIC_READ | win32file.GENERIC_WRITE,
                 0,
                 None,
@@ -30,7 +48,7 @@ def vr_client_read_image(handle):
     print("length: ", len(png_array))
     return png_array
 
-#ov = overlay.createOverlay(key, name)
+#
 
 #OpenVR gets the NeRF image by reading from a file. Will replace with the far
 #more efficient pipe method for interprocess communication when able.
@@ -72,18 +90,30 @@ def main():
     vr_sys = openvr.VRSystem()
     assert openvr.VRCompositor()
 
+    #create SERVER
+    vr_server_handle = vr_server_setup()
+    
+    #client CONNECTED
+    print("waiting for client")
+    win32pipe.ConnectNamedPipe(vr_server_handle, None)
+    print("got client")
+
+    #create CLIENT
+    vr_client_handle = vr_client_setup()
+
     poses = []
-    poses, _ = openvr.VRCompositor().waitGetPoses(poses, None)
-
-
-    pipe_handle = vr_client_setup()
-    png_bytes = vr_client_read_image(pipe_handle)
-    left_texture, right_texture = get_overlay_texture_from_bytes(png_bytes, 100, 100)
     while True:
+        #send pipe coords
+        vr_server_send_coords(vr_server_handle)
+        #read from pipe
+        png_bytes = vr_client_read_image(vr_client_handle)
+        
+        left_texture, right_texture = get_overlay_texture_from_bytes(png_bytes, 100, 100)
         poses, _ = openvr.VRCompositor().waitGetPoses(poses, None)
-        openvr.VRCompositor().clearLastSubmittedFrame()
+        
         render_frame(left_texture, right_texture)
-        time.sleep(1/90)
+        time.sleep(.5)
+        openvr.VRCompositor().clearLastSubmittedFrame()
 
     
 if __name__ == '__main__':
