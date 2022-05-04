@@ -322,7 +322,7 @@ if __name__ == "__main__":
 		elif args.screenshot_dir:
 			outname = os.path.join(args.screenshot_dir, args.scene + "_" + network_stem)
 			print(f"Rendering {outname}.png")
-			print("we're ehre")
+			print("we're here")
 			#testbed.set_nerf_camera_matrix(np.array([[1, 0, 0, 0.5], [0, -1, 0, 0.5], [0, 0, -1, 0.5]]))
 			#image = testbed.render(args.width, args.height, args.screenshot_spp, True)
 
@@ -356,21 +356,26 @@ if __name__ == "__main__":
 			while True:
 				#Read coords from pipe
 				resp = win32file.ReadFile(handle, 64*1024*10000)
-				print(f"message: {resp}")
+				#print(f"message: {resp}")
 
 				camera_coord_array = np.frombuffer(resp[1], dtype=np.float32)
-				print("coord array: ", camera_coord_array)
-				print("length: ", len(camera_coord_array))
+				#print("coord array: ", camera_coord_array)
+				#print("length: ", len(camera_coord_array))
 
 
 				for i in range(1):
 					#input_array = input("camera matrix")
-					testbed.set_nerf_camera_matrix(camera_coord_array.reshape((3, 4)))
+					camera_matrix = camera_coord_array.reshape((3, 4))
+					rotation_matrix = np.matmul([[1, 0, 0],
+					                             [0, -1, 0],
+												 [0, 0, -1]], camera_matrix[0:3, 0:3])
+					final_matrix = np.hstack((rotation_matrix, camera_matrix[:, [3]]))
+					testbed.set_nerf_camera_matrix(final_matrix)
 					image = testbed.render(args.width, args.height, args.screenshot_spp, True)
 					if os.path.dirname(outname) != "":
 						os.makedirs(os.path.dirname(outname), exist_ok=True)
-					write_image(outname + str(i) + "vr_camera "+ ".png", image)
-					print("image", image)
+					#write_image(outname + str(i) + "vr_camera "+ ".png", image)
+					#print("image", image)
 
 					# convert to bytes
 					img = np.copy(image)
