@@ -148,8 +148,12 @@ def main():
         #send pipe coords
         vr_server_send_coords(vr_server_handle)
         #read from pipe
+        #start = time.process_time()
         png_bytes = vr_client_read_image(vr_client_handle)
         left_texture, right_texture = get_overlay_texture_from_bytes(png_bytes, 100, 100)
+        #openvr.VRCompositor().clearLastSubmittedFrame()
+        #render_frame(left_texture, right_texture)
+        #print(time.process_time() - start)
         #overlay.setOverlayFlag(right_overlay, VROverlayFlags.SideBySide_Parallel, True);
 
         overlay.setOverlayTransformTrackedDeviceRelative(right_overlay, 0, right_matrix)
@@ -160,7 +164,7 @@ def main():
         #set overlay texture
         overlay.setOverlayTexture(right_overlay, right_texture)
         #overlay.setOverlayTexture(left_overlay, left_texture)
-        time.sleep(.01)
+        time.sleep(1/4)
         openvr.VRCompositor().clearLastSubmittedFrame()
 
     

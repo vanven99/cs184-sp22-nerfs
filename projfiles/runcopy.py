@@ -366,11 +366,19 @@ if __name__ == "__main__":
 				for i in range(1):
 					#input_array = input("camera matrix")
 					camera_matrix = camera_coord_array.reshape((3, 4))
+
 					rotation_matrix = np.matmul([[1, 0, 0],
-					                             [0, 1, 0],
-												 [0, 0, -1]], camera_matrix[0:3, 0:3])
-					final_matrix = np.hstack((rotation_matrix, camera_matrix[:, [3]]))
-					testbed.set_nerf_camera_matrix(final_matrix)
+					                            [0, -1, 0],
+												 [0, 0, 1]], camera_matrix[0:3, 0:3])
+					negation_matrix = np.array([[1, -1, 1, 1],
+					                            [1, -1, 1, -1],
+												[1, -1, 1, 1]])
+					transform_matrix = np.multiply(camera_matrix, negation_matrix)
+					print(np.array(transform_matrix).T)
+					# final_matrix = np.hstack((rotation_matrix, np.array([transform_matrix]).T))
+					testbed.set_nerf_camera_matrix(transform_matrix)
+					print("c", camera_matrix)
+					print(transform_matrix)
 					
 					image = testbed.render(args.width, args.height, args.screenshot_spp, True)
 					
