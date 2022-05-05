@@ -1,5 +1,8 @@
+import math
+from mimetypes import init
 import sys
 import time
+from tkinter import W
 import openvr
 import win32pipe, win32file, pywintypes
 import numpy as np
@@ -18,14 +21,52 @@ def vr_server_setup():
     None)
     return pipe
 
-def vr_server_send_coords(handle):
+def z_rotate(theta):
+    z_axis_rot = np.array([[math.cos(theta), -math.sin(theta), 0],
+                        [math.sin(theta), math.cos(theta), 0],
+                        [0, 0, 1]])
+    return z_axis_rot
+def x_rotate(theta):
+    x_axis_rot = np.array([[1, 0, 0],
+                        [0, math.cos(theta), -math.sin(theta)],
+                        [0, math.sin(theta), math.cos(theta)]])
+    return x_axis_rot
+
+def y_rotate(theta):
+    x_axis_rot = np.array([[math.cos(theta), 0, math.sin(0)],
+                        [0, 1, 0],
+                        [-math.sin(theta), 0, math.cos(theta)]])
+    return x_axis_rot
+def vr_server_send_coords(handle, initial_matrix):
+    # initial_matrix is an np.ndarray
     poses = []
     poses, _ = openvr.VRCompositor().waitGetPoses(poses, None)
     hmd_pose = poses[openvr.k_unTrackedDeviceIndex_Hmd]
     #print(hmd_pose.mDeviceToAbsoluteTracking)
+    new_coord = convert_to_numpy(hmd_pose.mDeviceToAbsoluteTracking)
     
+
+    z_axis_rot = x_rotate(math.pi / 2)
+
+    final_rotation = np.matmul(new_coord[:,:3], np.linalg.inv(initial_matrix[:, :3]))
+    rotated_z_final = np.matmul(z_axis_rot, final_rotation[:,:3])
+    translation = new_coord[:, 3] - initial_matrix[:, 3]
+    
+    final_matrix = np.hstack((rotated_z_final, 4 * np.asarray([translation]).T))
+
+
     #print(type(hmd_pose.mDeviceToAbsoluteTracking[0][0]))
-    win32file.WriteFile(handle, bytes(hmd_pose.mDeviceToAbsoluteTracking))
+    win32file.WriteFile(handle, bytes(convert_to_hmdmatrix(final_matrix)))
+
+def convert_to_numpy(arr):
+    return np.array([[arr[i][j] for j in range(4)] for i in range(3)])
+
+def convert_to_hmdmatrix(arr):
+    new_matrix = openvr.HmdMatrix34_t()
+    for i in range(3):
+        for j in range(4):
+            new_matrix[i][j] = arr[i][j]
+    return new_matrix
     
 def vr_client_setup():
     handle = win32file.CreateFile(
@@ -143,14 +184,19 @@ def main():
     left_matrix.m[2][1] = 0.0
     left_matrix.m[2][2] = 1.0
     left_matrix.m[2][3] = -.3
+    
+    poses, _ = openvr.VRCompositor().waitGetPoses(poses, None)
+    hmd_pose = poses[openvr.k_unTrackedDeviceIndex_Hmd]
+    initial_matrix = convert_to_numpy(hmd_pose.mDeviceToAbsoluteTracking)
 
     while True:
         #send pipe coords
-        vr_server_send_coords(vr_server_handle)
+        vr_server_send_coords(vr_server_handle, initial_matrix)
         #read from pipe
         #start = time.process_time()
         png_bytes = vr_client_read_image(vr_client_handle)
-        left_texture, right_texture = get_overlay_texture_from_bytes(png_bytes, 100, 100)
+        size = 200
+        left_texture, right_texture = get_overlay_texture_from_bytes(png_bytes, size, size)
         #openvr.VRCompositor().clearLastSubmittedFrame()
         #render_frame(left_texture, right_texture)
         #print(time.process_time() - start)

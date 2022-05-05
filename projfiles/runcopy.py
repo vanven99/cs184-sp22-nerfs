@@ -42,6 +42,7 @@ def parse_args():
 	parser.add_argument("--screenshot_transforms", default="", help="Path to a nerf style transforms.json from which to save screenshots.")
 	parser.add_argument("--screenshot_frames", nargs="*", help="Which frame(s) to take screenshots of.")
 	parser.add_argument("--screenshot_dir", default="", help="Which directory to output screenshots to.")
+	parser.add_argument("--vr", default="", help="enable vr")
 	parser.add_argument("--screenshot_spp", type=int, default=16, help="Number of samples per pixel in screenshots.")
 
 	parser.add_argument("--save_mesh", default="", help="Output a marching-cubes based mesh from the NeRF or SDF model. Supports OBJ and PLY format.")
@@ -319,7 +320,7 @@ if __name__ == "__main__":
 				write_image(outname, image)
 				print("image", image)
 				print("cam_matrix", cam_matrix)
-		elif args.screenshot_dir:
+		elif args.vr:
 			outname = os.path.join(args.screenshot_dir, args.scene + "_" + network_stem)
 			print(f"Rendering {outname}.png")
 			print("we're here")
@@ -353,6 +354,19 @@ if __name__ == "__main__":
 			win32pipe.ConnectNamedPipe(pipe_to_vr, None)
 			print("got client")
 			
+			initial_camera = np.array([[1, 0, 0, 1],
+			                            [0, 1, 0, 2],
+			 						   [0, 0, 1, 0]])
+			#initial_camera = np.array([[ 0.86366737,  0.03454873,  0.50287688,  0.63179141],
+			#					[ 0.48778042, -0.30880022, -0.8165248, -0.72935796],
+			#					[-0.12707862, -0.95049924,  0.28355286,  0.17716634]])
+			negation_matrix = np.array([[1, -1, 1, 1],
+										[1, -1, 1, -1],
+										[1, -1, 1, 1]])
+			testbed.set_nerf_camera_matrix(initial_camera)
+            #outname = os.path.join(args.screenshot_dir, os.path.basename(f["file_path"]))
+			image = testbed.render(args.width, args.height, args.screenshot_spp, True)
+			write_image(outname + ".png", image)
 			while True:
 				#Read coords from pipe
 				resp = win32file.ReadFile(handle, 64*1024*10000)
@@ -363,38 +377,42 @@ if __name__ == "__main__":
 				#print("length: ", len(camera_coord_array))
 
 
-				for i in range(1):
+				# for i in range(1):
 					#input_array = input("camera matrix")
-					camera_matrix = camera_coord_array.reshape((3, 4))
+				vr_matrix = camera_coord_array.reshape((3, 4))
 
-					rotation_matrix = np.matmul([[1, 0, 0],
-					                            [0, -1, 0],
-												 [0, 0, 1]], camera_matrix[0:3, 0:3])
-					negation_matrix = np.array([[1, -1, 1, 1],
-					                            [1, -1, 1, -1],
-												[1, -1, 1, 1]])
-					transform_matrix = np.multiply(camera_matrix, negation_matrix)
-					print(np.array(transform_matrix).T)
-					# final_matrix = np.hstack((rotation_matrix, np.array([transform_matrix]).T))
-					testbed.set_nerf_camera_matrix(transform_matrix)
-					print("c", camera_matrix)
-					print(transform_matrix)
-					
-					image = testbed.render(args.width, args.height, args.screenshot_spp, True)
-					
-					if os.path.dirname(outname) != "":
-						os.makedirs(os.path.dirname(outname), exist_ok=True)
-					#write_image(outname + str(i) + "vr_camera "+ ".png", image)
-					#print("image", image)
+				# rotation_matrix = np.matmul([[1, 0, 0],
+				# 							[0, -1, 0],
+				# 								[0, 0, 1]], camera_matrix[0:3, 0:3])
+				transform_matrix = np.multiply(vr_matrix, negation_matrix)
 
-					# convert to bytes
-					img = np.copy(image)
-					# Unmultiply alpha
-					img[...,0:3] = np.divide(img[...,0:3], img[...,3:4], out=np.zeros_like(img[...,0:3]), where=img[...,3:4] != 0)
-					img[...,0:3] = linear_to_srgb(img[...,0:3])
-					img = (np.clip(img, 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8)
-					#write bytes to pipe
-					win32file.WriteFile(pipe_to_vr, bytes(img))
+				rotation = np.matmul(transform_matrix[:, :3], initial_camera[:, :3])
+				translation = transform_matrix[:, 3] + initial_camera[:, 3]
+				final_matrix = np.hstack((rotation, np.asarray([translation]).T))
+				# final_matrix = np.hstack((rotation_matrix, np.array([transform_matrix]).T))
+				#ficus initial
+# 				[[ 0.86366737  0.03454873  0.50287688  0.63179141]
+#                   [ 0.48778042 -0.30880022 -0.8165248  -0.72935796]
+#  [-0.12707862 -0.95049924  0.28355286  0.17716634]]
+				#print(final_matrix)
+				testbed.set_nerf_camera_matrix(final_matrix)
+				start = time.time()	
+				image = testbed.render(args.width, args.height, args.screenshot_spp, True)
+				end = time.time()
+				print("render: ", end - start)
+				# if os.path.dirname(outname) != "":
+				# 	os.makedirs(os.path.dirname(outname), exist_ok=True)
+				#write_image(outname + str(i) + "vr_camera "+ ".png", image)
+				#print("image", image)
+
+				# convert to bytes
+				img = np.copy(image)
+				# Unmultiply alpha
+				img[...,0:3] = np.divide(img[...,0:3], img[...,3:4], out=np.zeros_like(img[...,0:3]), where=img[...,3:4] != 0)
+				img[...,0:3] = linear_to_srgb(img[...,0:3])
+				img = (np.clip(img, 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8)
+				#write bytes to pipe
+				win32file.WriteFile(pipe_to_vr, bytes(img))
 
 			print("finished now")
 			win32file.CloseHandle(pipe_to_vr)
