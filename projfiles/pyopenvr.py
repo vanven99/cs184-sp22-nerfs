@@ -9,8 +9,6 @@ import numpy as np
 
 import texture
 
-#Pipe code for interprocess communication: Images NOT supported yet, still figuring out how to recover
-#PNG images from bytes and display them to the vive
 def vr_server_setup():
     pipe = win32pipe.CreateNamedPipe(
     r'\\.\pipe\VR_SERVER',
