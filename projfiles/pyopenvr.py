@@ -42,21 +42,9 @@ def vr_server_send_coords(handle, initial_matrix):
     hmd_pose = poses[openvr.k_unTrackedDeviceIndex_Hmd]
     #print(hmd_pose.mDeviceToAbsoluteTracking)
     win32file.WriteFile(handle, bytes(hmd_pose.mDeviceToAbsoluteTracking))
+    win32file.WriteFile(handle, bytes(openvr.VRSystem().getEyeToHeadTransform(0)))
+
     return
-    new_coord = convert_to_numpy(hmd_pose.mDeviceToAbsoluteTracking)
-    
-
-    z_axis_rot = x_rotate(math.pi / 2)
-
-    final_rotation = np.matmul(new_coord[:,:3], np.linalg.inv(initial_matrix[:, :3]))
-    rotated_z_final = np.matmul(z_axis_rot, final_rotation[:,:3])
-    translation = new_coord[:, 3] - initial_matrix[:, 3]
-    
-    final_matrix = np.hstack((rotated_z_final, 4 * np.asarray([translation]).T))
-
-
-    #print(type(hmd_pose.mDeviceToAbsoluteTracking[0][0]))
-    win32file.WriteFile(handle, bytes(convert_to_hmdmatrix(final_matrix)))
 
 def convert_to_numpy(arr):
     return np.array([[arr[i][j] for j in range(4)] for i in range(3)])
@@ -81,21 +69,31 @@ def vr_client_setup():
     return handle
 
 def vr_client_read_image(handle):
-    resp = win32file.ReadFile(handle, 64*1024*10000)
-    #print(f"message: {resp}")
+    resp = win32file.ReadFile(handle, 160000)
+    # png_array = np.array(list(resp[1]))
+    # print(png_array)
+    # png_array = png_array.reshape(400, 400)
+    resp2 = win32file.ReadFile(handle, 160000)
 
-    png_array = list(resp[1])
+    png_array2 = np.array(list(resp2[1]))
+    return list(resp[1])
+    # png_array2 = png_array2.reshape(400, 400)
+
     #print("png array: ", png_array)
     #print("length: ", len(png_array))
+    # return list(np.hstack((png_array, png_array2)).reshape((320000, 1)))
+    png_array.extend(png_array2)
+    print(np.array(png_array).shape)
     return png_array
 
-#
 
 #OpenVR gets the NeRF image by reading from a file. Will replace with the far
 #more efficient pipe method for interprocess communication when able.
 # For now, putting cat.png into both eyes.
 
 def get_overlay_texture_from_bytes(png_array, width, height):
+    # print(len(png_array))
+    # print(png_array[0])
     GLUint_L = texture.texture_from_bytes(png_array, width, height)
     GLUint_R = texture.texture_from_bytes(png_array, width, height)
 
@@ -151,7 +149,10 @@ def main():
     overlay.showOverlay(right_overlay)
     #left_overlay = overlay.createOverlay("left", "left")
     #overlay.showOverlay(left_overlay)
+    # print(dir(vr_sys.VROverlayFlags))
     
+    # overlay.setOverlayFlag(right_overlay, 1024, True)
+    # overlay.setOverlayFlag(right_overlay, 1, True)
     #define overlay transform matrices
     right_matrix = openvr.HmdMatrix34_t()
     right_matrix.m[0][0] = 1
@@ -184,33 +185,36 @@ def main():
     left_matrix.m[2][1] = 0.0
     left_matrix.m[2][2] = 1.0
     left_matrix.m[2][3] = -.3
-    
+
     poses, _ = openvr.VRCompositor().waitGetPoses(poses, None)
     hmd_pose = poses[openvr.k_unTrackedDeviceIndex_Hmd]
     initial_matrix = convert_to_numpy(hmd_pose.mDeviceToAbsoluteTracking)
-
     while True:
         #send pipe coords
         vr_server_send_coords(vr_server_handle, initial_matrix)
         #read from pipe
         #start = time.process_time()
+        # print("left", vr_sys.getEyeToHeadTransform(0))
+        # print("right", vr_sys.getEyeToHeadTransform(1))
         png_bytes = vr_client_read_image(vr_client_handle)
+        # png_bytes2 = vr_client_read_image(vr_client_handle)
         size = 200
-        left_texture, right_texture = get_overlay_texture_from_bytes(png_bytes, size, size)
+        _, right_texture = get_overlay_texture_from_bytes(png_bytes, size, size)
+        # _, left_texture = get_overlay_texture_from_bytes(png_bytes2, size, size)
         #openvr.VRCompositor().clearLastSubmittedFrame()
         #render_frame(left_texture, right_texture)
         #print(time.process_time() - start)
         #overlay.setOverlayFlag(right_overlay, VROverlayFlags.SideBySide_Parallel, True);
-
         overlay.setOverlayTransformTrackedDeviceRelative(right_overlay, 0, right_matrix)
         #overlay.setOverlayTransformTrackedDeviceRelative(left_overlay, 0, left_matrix)
         poses, _ = openvr.VRCompositor().waitGetPoses(poses, None)
         
-        #render_frame(left_texture, right_texture)
+        render_frame(None, right_texture)
+        # time.sleep(0.25)
         #set overlay texture
-        overlay.setOverlayTexture(right_overlay, right_texture)
-        #overlay.setOverlayTexture(left_overlay, left_texture)
-        openvr.VRCompositor().clearLastSubmittedFrame()
+        # overlay.setOverlayTexture(right_overlay, right_texture)
+        # overlay.setOverlayTexture(left_overlay, left_texture)
+        # openvr.VRCompositor().clearLastSubmittedFrame()
 
     
 if __name__ == '__main__':

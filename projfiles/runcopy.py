@@ -363,85 +363,132 @@ if __name__ == "__main__":
 			negation_matrix = np.array([[-1, 1, -1, 1],
 										[-1, 1, -1, 1],
 										[-1, 1, -1, 1]])
-			initial_camera = np.array([[1, 0, 0, 5],
+			initial_camera_l = np.array([[1, 0, 0, 5],
+			                            [0, -1, 0, 3],
+			 						   [0, 0, 1, 2]])
+			initial_camera_r = np.array([[1, 0, 0, 5],
 			                            [0, -1, 0, 3],
 			 						   [0, 0, 1, 2]])
             #outname = os.path.join(args.screenshot_dir, os.path.basename(f["file_path"]))
-			resp = win32file.ReadFile(handle, 64*1024*10000)
+			hmd_bytes = win32file.ReadFile(handle, 48)
+			left_eye_bytes = win32file.ReadFile(handle, 48)
 			#print(f"message: {resp}")
 
-			camera_coord_array = np.frombuffer(resp[1], dtype=np.float32)
+			translation_speedup = 2
+			camera_coord_array = np.frombuffer(hmd_bytes[1], dtype=np.float32)
+			eye_coord_array = np.frombuffer(left_eye_bytes[1], dtype=np.float32)
+
+			eye_coord_array = eye_coord_array.reshape((3, 4))
+			print(eye_coord_array)
+			left_x_transform = eye_coord_array[0][3]
+			left_z_transform = eye_coord_array[2][3]
+
 			vr_matrix = camera_coord_array.reshape((3, 4))
-			vr_matrix = np.multiply(vr_matrix, negation_matrix)
-			print("v", vr_matrix)
-			transform_matrix = initial_camera[:3, :3] @ np.linalg.inv(vr_matrix[:3, :3])
-			print("transform:, ", transform_matrix)
-			initial_camera = np.roll(initial_camera, 1, axis=0)
-			testbed.set_nerf_camera_matrix(initial_camera)
-			image = testbed.render(args.width, args.height, args.screenshot_spp, True)
+			left_eye_matrix = np.copy(vr_matrix)
+			left_eye_matrix[0][3] += left_x_transform
+			left_eye_matrix[2][3] += left_z_transform
+
+			initial_camera_l[0][3] += left_x_transform
+			initial_camera_l[2][3] += left_z_transform
+
+			right_eye_matrix = np.copy(vr_matrix)
+			right_eye_matrix[0][3] -= left_x_transform
+			right_eye_matrix[2][3] -= left_z_transform
+
+			initial_camera_r[0][3] -= left_x_transform
+			initial_camera_r[2][3] -= left_z_transform
+			vr_matrix_l = np.multiply(left_eye_matrix, negation_matrix)
+			vr_matrix_r = np.multiply(right_eye_matrix, negation_matrix)
+			transform_matrix_l = initial_camera_l[:3, :3] @ np.linalg.inv(vr_matrix_l[:3, :3])
+			transform_matrix_r = initial_camera_r[:3, :3] @ np.linalg.inv(vr_matrix_r[:3, :3])
+
+			new_camera_l = np.roll(initial_camera_l, 1, axis=0)
+			new_camera_l[:, 3] *= translation_speedup
+			new_camera_r = np.roll(initial_camera_r, 1, axis=0)
+			new_camera_r[:, 3] *= translation_speedup
+			testbed.set_nerf_camera_matrix(new_camera_l)
+			image_l = testbed.render(args.width, args.height, args.screenshot_spp, True)
+			testbed.set_nerf_camera_matrix(new_camera_r)
+			image_r = testbed.render(args.width, args.height, args.screenshot_spp, True)
 			# write_image(outname + ".png", image)
 			# convert to bytes
-			img = np.copy(image)
+			img = np.copy(image_l)
 			# Unmultiply alpha
 			img[...,0:3] = np.divide(img[...,0:3], img[...,3:4], out=np.zeros_like(img[...,0:3]), where=img[...,3:4] != 0)
 			img[...,0:3] = linear_to_srgb(img[...,0:3])
 			img = (np.clip(img, 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8)
 			#write bytes to pipe
-			win32file.WriteFile(pipe_to_vr, bytes(img))
+			print(win32file.WriteFile(pipe_to_vr, bytes(img)))
+			img = np.copy(image_r)
+			# Unmultiply alpha
+			img[...,0:3] = np.divide(img[...,0:3], img[...,3:4], out=np.zeros_like(img[...,0:3]), where=img[...,3:4] != 0)
+			img[...,0:3] = linear_to_srgb(img[...,0:3])
+			img = (np.clip(img, 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8)
+			#write bytes to pipe
+			# print(win32file.WriteFile(pipe_to_vr, bytes(img))
+
 			while True:
 				#Read coords from pipe
-				resp = win32file.ReadFile(handle, 64*1024*10000)
+				# resp = win32file.ReadFile(handle, 48)
+				hmd_bytes = win32file.ReadFile(handle, 48)
+				left_eye_bytes = win32file.ReadFile(handle, 48)
 				#print(f"message: {resp}")
 
-				camera_coord_array = np.frombuffer(resp[1], dtype=np.float32)
+				camera_coord_array = np.frombuffer(hmd_bytes[1], dtype=np.float32)
+				eye_coord_array = np.frombuffer(left_eye_bytes[1], dtype=np.float32)
+				eye_coord_array = eye_coord_array.reshape((3, 4))
 				#print("coord array: ", camera_coord_array)
 				#print("length: ", len(camera_coord_array))
 				
+				left_x_transform = eye_coord_array[0][3]
+				left_z_transform = eye_coord_array[2][3]
 
-				# for i in range(1):
-					#input_array = input("camera matrix")
 				vr_matrix = camera_coord_array.reshape((3, 4))
+				# do this independently if translation changes in neg matrix
 				vr_matrix = np.multiply(vr_matrix, negation_matrix)
-				# print("vr:", vr_matrix)
-				# vr_matrix = np.roll(vr_matrix, 1, axis=0)
-				# print("rolled:, ", vr_matrix)
+				left_eye_matrix = np.copy(vr_matrix)
+				left_eye_matrix[0][3] += left_x_transform
+				left_eye_matrix[2][3] += left_z_transform
 
-				# rotation_matrix = np.matmul([[1, 0, 0],
-				# 							[0, -1, 0],
-				# 								[0, 0, 1]], camera_matrix[0:3, 0:3])
-				# transform_matrix = np.multiply(vr_matrix, negation_matrix)
-				# rotation = np.matmul(transform_matrix[:, :3], initial_camera[:, :3])
-				# print(transform_matrix.shape)
-				# translation = transform_matrix[:, 3] + initial_camera[:, 3]
-				# print(translation.shape)
-				# print(rotation.shape)
-				# print(np.asarray([translation]).T.shape)
-				#final_matrix = np.hstack((rotation, np.asarray([translation]).T))
-				# final_matrix = np.hstack((rotation_matrix, np.array([transform_matrix]).T))
-				#ficus initial
-# 				[[ 0.86366737  0.03454873  0.50287688  0.63179141]
-#                   [ 0.48778042 -0.30880022 -0.8165248  -0.72935796]
-#  [-0.12707862 -0.95049924  0.28355286  0.17716634]]
-				#print(final_matrix)
-				transformed_rotation = transform_matrix @ vr_matrix[:3, :3]
-				vr_matrix = np.hstack((transformed_rotation, np.array([vr_matrix[:, 3]]).T))
-				new_camera = np.roll(vr_matrix, 1, axis=0)
-				testbed.set_nerf_camera_matrix(new_camera)
+				right_eye_matrix = np.copy(vr_matrix)
+				right_eye_matrix[0][3] -= left_x_transform
+				right_eye_matrix[2][3] -= left_z_transform
+
+
+				transformed_rotation_l = transform_matrix_l @ left_eye_matrix[:3, :3]
+				transformed_rotation_r = transform_matrix_r @ right_eye_matrix[:3, :3]
+				left_eye_matrix = np.hstack((transformed_rotation_l, np.array([left_eye_matrix[:, 3]]).T))
+				right_eye_matrix = np.hstack((transformed_rotation_r, np.array([right_eye_matrix[:, 3]]).T))
+
+				new_camera_l = np.roll(left_eye_matrix, 1, axis=0)
+				new_camera_l[:, 3] *= translation_speedup
+				testbed.set_nerf_camera_matrix(new_camera_l)
+				image_l = testbed.render(args.width, args.height, args.screenshot_spp, True)
+				new_camera_r = np.roll(right_eye_matrix, 1, axis=0)
+				new_camera_r[:, 3] *= translation_speedup
+				testbed.set_nerf_camera_matrix(new_camera_r)
 				# print(testbed.camera_matrix)
-				image = testbed.render(args.width, args.height, args.screenshot_spp, True)
+				image_r = testbed.render(args.width, args.height, args.screenshot_spp, True)
 				# if os.path.dirname(outname) != "":
 				# 	os.makedirs(os.path.dirname(outname), exist_ok=True)
 				#write_image(outname + str(i) + "vr_camera "+ ".png", image)
 				#print("image", image)
 
 				# convert to bytes
-				img = np.copy(image)
+				img = np.copy(image_l)
 				# Unmultiply alpha
 				img[...,0:3] = np.divide(img[...,0:3], img[...,3:4], out=np.zeros_like(img[...,0:3]), where=img[...,3:4] != 0)
 				img[...,0:3] = linear_to_srgb(img[...,0:3])
 				img = (np.clip(img, 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8)
 				#write bytes to pipe
 				win32file.WriteFile(pipe_to_vr, bytes(img))
+				img = np.copy(image_r)
+				# Unmultiply alpha
+				img[...,0:3] = np.divide(img[...,0:3], img[...,3:4], out=np.zeros_like(img[...,0:3]), where=img[...,3:4] != 0)
+				img[...,0:3] = linear_to_srgb(img[...,0:3])
+				img = (np.clip(img, 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8)
+				#write bytes to pipe
+				# win32file.WriteFile(pipe_to_vr, bytes(img))
 
 			print("finished now")
 			win32file.CloseHandle(pipe_to_vr)
