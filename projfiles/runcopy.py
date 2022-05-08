@@ -354,19 +354,40 @@ if __name__ == "__main__":
 			win32pipe.ConnectNamedPipe(pipe_to_vr, None)
 			print("got client")
 			
-			initial_camera = np.array([[1, 0, 0, 1],
-			                            [0, 1, 0, 2],
-			 						   [0, 0, 1, 0]])
+			# initial_camera = np.array([[1, 0, 0, 0],
+			#                             [0, -1, 0, 0],
+			#  						   [0, 0, -1, 4.5]])
 			#initial_camera = np.array([[ 0.86366737,  0.03454873,  0.50287688,  0.63179141],
 			#					[ 0.48778042, -0.30880022, -0.8165248, -0.72935796],
 			#					[-0.12707862, -0.95049924,  0.28355286,  0.17716634]])
-			negation_matrix = np.array([[1, -1, 1, 1],
-										[1, -1, 1, -1],
-										[1, -1, 1, 1]])
-			testbed.set_nerf_camera_matrix(initial_camera)
+			negation_matrix = np.array([[-1, 1, -1, 1],
+										[-1, 1, -1, 1],
+										[-1, 1, -1, 1]])
+			initial_camera = np.array([[1, 0, 0, 5],
+			                            [0, -1, 0, 3],
+			 						   [0, 0, 1, 2]])
             #outname = os.path.join(args.screenshot_dir, os.path.basename(f["file_path"]))
+			resp = win32file.ReadFile(handle, 64*1024*10000)
+			#print(f"message: {resp}")
+
+			camera_coord_array = np.frombuffer(resp[1], dtype=np.float32)
+			vr_matrix = camera_coord_array.reshape((3, 4))
+			vr_matrix = np.multiply(vr_matrix, negation_matrix)
+			print("v", vr_matrix)
+			transform_matrix = initial_camera[:3, :3] @ np.linalg.inv(vr_matrix[:3, :3])
+			print("transform:, ", transform_matrix)
+			initial_camera = np.roll(initial_camera, 1, axis=0)
+			testbed.set_nerf_camera_matrix(initial_camera)
 			image = testbed.render(args.width, args.height, args.screenshot_spp, True)
-			write_image(outname + ".png", image)
+			# write_image(outname + ".png", image)
+			# convert to bytes
+			img = np.copy(image)
+			# Unmultiply alpha
+			img[...,0:3] = np.divide(img[...,0:3], img[...,3:4], out=np.zeros_like(img[...,0:3]), where=img[...,3:4] != 0)
+			img[...,0:3] = linear_to_srgb(img[...,0:3])
+			img = (np.clip(img, 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8)
+			#write bytes to pipe
+			win32file.WriteFile(pipe_to_vr, bytes(img))
 			while True:
 				#Read coords from pipe
 				resp = win32file.ReadFile(handle, 64*1024*10000)
@@ -375,31 +396,39 @@ if __name__ == "__main__":
 				camera_coord_array = np.frombuffer(resp[1], dtype=np.float32)
 				#print("coord array: ", camera_coord_array)
 				#print("length: ", len(camera_coord_array))
-
+				
 
 				# for i in range(1):
 					#input_array = input("camera matrix")
 				vr_matrix = camera_coord_array.reshape((3, 4))
+				vr_matrix = np.multiply(vr_matrix, negation_matrix)
+				# print("vr:", vr_matrix)
+				# vr_matrix = np.roll(vr_matrix, 1, axis=0)
+				# print("rolled:, ", vr_matrix)
 
 				# rotation_matrix = np.matmul([[1, 0, 0],
 				# 							[0, -1, 0],
 				# 								[0, 0, 1]], camera_matrix[0:3, 0:3])
-				transform_matrix = np.multiply(vr_matrix, negation_matrix)
-
-				rotation = np.matmul(transform_matrix[:, :3], initial_camera[:, :3])
-				translation = transform_matrix[:, 3] + initial_camera[:, 3]
-				final_matrix = np.hstack((rotation, np.asarray([translation]).T))
+				# transform_matrix = np.multiply(vr_matrix, negation_matrix)
+				# rotation = np.matmul(transform_matrix[:, :3], initial_camera[:, :3])
+				# print(transform_matrix.shape)
+				# translation = transform_matrix[:, 3] + initial_camera[:, 3]
+				# print(translation.shape)
+				# print(rotation.shape)
+				# print(np.asarray([translation]).T.shape)
+				#final_matrix = np.hstack((rotation, np.asarray([translation]).T))
 				# final_matrix = np.hstack((rotation_matrix, np.array([transform_matrix]).T))
 				#ficus initial
 # 				[[ 0.86366737  0.03454873  0.50287688  0.63179141]
 #                   [ 0.48778042 -0.30880022 -0.8165248  -0.72935796]
 #  [-0.12707862 -0.95049924  0.28355286  0.17716634]]
 				#print(final_matrix)
-				testbed.set_nerf_camera_matrix(final_matrix)
-				start = time.time()	
+				transformed_rotation = transform_matrix @ vr_matrix[:3, :3]
+				vr_matrix = np.hstack((transformed_rotation, np.array([vr_matrix[:, 3]]).T))
+				new_camera = np.roll(vr_matrix, 1, axis=0)
+				testbed.set_nerf_camera_matrix(new_camera)
+				# print(testbed.camera_matrix)
 				image = testbed.render(args.width, args.height, args.screenshot_spp, True)
-				end = time.time()
-				print("render: ", end - start)
 				# if os.path.dirname(outname) != "":
 				# 	os.makedirs(os.path.dirname(outname), exist_ok=True)
 				#write_image(outname + str(i) + "vr_camera "+ ".png", image)

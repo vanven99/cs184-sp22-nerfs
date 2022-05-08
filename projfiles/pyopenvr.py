@@ -43,6 +43,8 @@ def vr_server_send_coords(handle, initial_matrix):
     poses, _ = openvr.VRCompositor().waitGetPoses(poses, None)
     hmd_pose = poses[openvr.k_unTrackedDeviceIndex_Hmd]
     #print(hmd_pose.mDeviceToAbsoluteTracking)
+    win32file.WriteFile(handle, bytes(hmd_pose.mDeviceToAbsoluteTracking))
+    return
     new_coord = convert_to_numpy(hmd_pose.mDeviceToAbsoluteTracking)
     
 
@@ -210,7 +212,6 @@ def main():
         #set overlay texture
         overlay.setOverlayTexture(right_overlay, right_texture)
         #overlay.setOverlayTexture(left_overlay, left_texture)
-        time.sleep(1/4)
         openvr.VRCompositor().clearLastSubmittedFrame()
 
     
