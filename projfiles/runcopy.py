@@ -25,6 +25,9 @@ from tqdm import tqdm
 import pyngp as ngp # noqa
 import win32pipe, win32file, pywintypes
 
+# Globals
+translation_speedup = 3
+
 def parse_args():
 	parser = argparse.ArgumentParser(description="Run neural graphics primitives testbed with additional configuration & output options")
 
@@ -323,9 +326,6 @@ if __name__ == "__main__":
 		elif args.vr:
 			outname = os.path.join(args.screenshot_dir, args.scene + "_" + network_stem)
 			print(f"Rendering {outname}.png")
-			print("we're here")
-			#testbed.set_nerf_camera_matrix(np.array([[1, 0, 0, 0.5], [0, -1, 0, 0.5], [0, 0, -1, 0.5]]))
-			#image = testbed.render(args.width, args.height, args.screenshot_spp, True)
 
 			#create INSTANT SERVER
 			pipe_to_vr = win32pipe.CreateNamedPipe(
@@ -335,8 +335,6 @@ if __name__ == "__main__":
 			1, 65536, 65536,
 			0,
 			None)
-
-
 
 			#create INSTANT CLIENT
 			handle = win32file.CreateFile(
@@ -354,78 +352,58 @@ if __name__ == "__main__":
 			win32pipe.ConnectNamedPipe(pipe_to_vr, None)
 			print("got client")
 			
-			# initial_camera = np.array([[1, 0, 0, 0],
-			#                             [0, -1, 0, 0],
-			#  						   [0, 0, -1, 4.5]])
-			#initial_camera = np.array([[ 0.86366737,  0.03454873,  0.50287688,  0.63179141],
-			#					[ 0.48778042, -0.30880022, -0.8165248, -0.72935796],
-			#					[-0.12707862, -0.95049924,  0.28355286,  0.17716634]])
-			negation_matrix = np.array([[-1, 1, -1, 1],
-										[-1, 1, -1, 1],
-										[-1, 1, -1, 1]])
 			initial_camera = np.array([[1, 0, 0, 5],
 			                            [0, -1, 0, 3],
 			 						   [0, 0, 1, 2]])
 
+			# Translates coordinate systems
+			negation_matrix = np.array([[-1, 1, -1, 1],
+										[-1, 1, -1, 1],
+										[-1, 1, -1, 1]])
+
+			# Read initial headset position
 			hmd_bytes = win32file.ReadFile(handle, 48)
-			# left_eye_bytes = win32file.ReadFile(handle, 48)
-
-			translation_speedup = 3
 			camera_coord_array = np.frombuffer(hmd_bytes[1], dtype=np.float32)
-
 			vr_matrix = camera_coord_array.reshape((3, 4))
 
-			right_eye_matrix = np.copy(vr_matrix)
 			vr_matrix = np.multiply(vr_matrix, negation_matrix)
+			# Calculate transform from initial position to initial camera position
 			transform_matrix = initial_camera[:3, :3] @ np.linalg.inv(vr_matrix[:3, :3])
 
-			# new_camera = np.roll(initial_camera, 1, axis=0)
-			# new_camera[:, 3] *= translation_speedup
-			# testbed.set_nerf_camera_matrix(new_camera)
-			# image = testbed.render(args.width, args.height, args.screenshot_spp, True)
-
-			# # write_image(outname + ".png", image)
-			# # convert to bytes
-			# img = np.copy(image)
-			# # Unmultiply alpha
-			# img[...,0:3] = np.divide(img[...,0:3], img[...,3:4], out=np.zeros_like(img[...,0:3]), where=img[...,3:4] != 0)
-			# img[...,0:3] = linear_to_srgb(img[...,0:3])
-			# img = (np.clip(img, 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8)
-			# #write bytes to pipe
-			# print(win32file.WriteFile(pipe_to_vr, bytes(img)))
-			# #write bytes to pipe
-			# # print(win32file.WriteFile(pipe_to_vr, bytes(img))
-
 			while True:
+
 				#Read coords from pipe
 				# resp = win32file.ReadFile(handle, 48)
 				left_eye_bytes = win32file.ReadFile(handle, 48)
 				right_eye_bytes = win32file.ReadFile(handle, 48)
-				#print(f"message: {resp}")
 
 				left_coord_array = np.frombuffer(left_eye_bytes[1], dtype=np.float32)
 				right_coord_array = np.frombuffer(right_eye_bytes[1], dtype=np.float32)
 				left_matrix = left_coord_array.reshape((3, 4))
 				right_matrix = right_coord_array.reshape((3, 4))
-				#print("coord array: ", camera_coord_array)
-				#print("length: ", len(camera_coord_array))
 				
-				# do this independently if translation changes in neg matrix
 				left_matrix = np.multiply(left_matrix, negation_matrix)
 				right_matrix = np.multiply(right_matrix, negation_matrix)
 
+				# Transform current position to camera space
 				transformed_left_rotation = transform_matrix @ left_matrix[:3, :3]
 				transformed_right_rotation = transform_matrix @ right_matrix[:3, :3]
+
+				# Concatenate translations
 				left_eye_matrix = np.hstack((transformed_left_rotation, np.array([left_matrix[:, 3]]).T))
 				right_eye_matrix = np.hstack((transformed_right_rotation, np.array([right_matrix[:, 3]]).T))
-				print(left_eye_matrix)
 
+				# Roll to account for nerf to ngp translation
 				new_camera_l = np.roll(left_eye_matrix, 1, axis=0)
+				new_camera_r = np.roll(right_eye_matrix, 1, axis=0)
+
+				# Scale translations
 				new_camera_l[:, 3] *= translation_speedup
+				new_camera_r[:, 3] *= translation_speedup
+
+				# Render images
 				testbed.set_nerf_camera_matrix(new_camera_l)
 				image_l = testbed.render(args.width, args.height, args.screenshot_spp, True)
-				new_camera_r = np.roll(right_eye_matrix, 1, axis=0)
-				new_camera_r[:, 3] *= translation_speedup
 				testbed.set_nerf_camera_matrix(new_camera_r)
 				image_r = testbed.render(args.width, args.height, args.screenshot_spp, True)
 
@@ -447,9 +425,6 @@ if __name__ == "__main__":
 				img = (np.clip(img, 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8)
 				#write bytes to pipe
 				win32file.WriteFile(pipe_to_vr, bytes(img))
-
-			print("finished now")
-			win32file.CloseHandle(pipe_to_vr)
 
 
 
