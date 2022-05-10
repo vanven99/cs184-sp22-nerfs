@@ -2,7 +2,7 @@
 
 ## A VR Viewer for Nvidia's Instant-NGP
 
-## Requirements
+### Requirements
 
 * A working installation of Instant-NGP
 * A VR headset compatible with SteamVR
@@ -26,9 +26,9 @@ python pyopenvr.py [--stereo]
 python scripts/run.py --scene [scene] --vr [--stereo]
 ```
 
-## Options
+### Options
 
-### run.py
+#### run.py
 ```bash
 $ python scripts/run.py --help
 usage: run.py [-h] [Everything normally in Instant-NGP] [--size SIZE] [--vr] [--stereo] [--translation_scale TRANSLATION_SCALE] [--camera_offset CAMERA_OFFSET [CAMERA_OFFSET ...]] [--initial_rotation INITIAL_ROTATION [INITIAL_ROTATION ...]]
@@ -49,7 +49,7 @@ optional arguments:
                         Additional rotation of initial camera position, in degrees (x y z)
 ```
 
-### pyopenvr.py
+#### pyopenvr.py
 ```bash
 $ python projfiles/pyopenvr.py --help
 usage: pyopenvr.py [-h] [--size SIZE] [--stereo] [--debug] [--focus_distance FOCUS_DISTANCE]
@@ -65,9 +65,9 @@ optional arguments:
                         Distance to focus eyes, in meters
 ```
 
-## Current issues
+### Current issues
 * Tracking is currently not one-to-one with headset movement
 
-## Future work
+### Future work
 * Using light fields to speed up rendering
 * Adaptive focus
