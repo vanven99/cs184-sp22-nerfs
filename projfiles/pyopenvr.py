@@ -20,6 +20,7 @@ def parse_args():
     parser.add_argument("--size", default=200, type=int, help="The resolution of the input image")
     parser.add_argument("--stereo", default=False, help="Enable stereo imaging", action='store_true')
     parser.add_argument("--debug", default=False, help="Enable debug logging", action='store_true')
+    parser.add_argument("--focus_distance", default=1, type=float, help="Distance to focus eyes, in meters")
 
     global args
     args = parser.parse_args()
@@ -39,21 +40,27 @@ def convert_to_hmdmatrix(arr):
     
 # Rotation helpers
 def z_rotate(theta):
-    z_axis_rot = np.array([[math.cos(theta), -math.sin(theta), 0],
+    return np.array([[math.cos(theta), -math.sin(theta), 0],
                         [math.sin(theta), math.cos(theta), 0],
                         [0, 0, 1]])
-    return z_axis_rot
+
 def x_rotate(theta):
-    x_axis_rot = np.array([[1, 0, 0],
+    return np.array([[1, 0, 0],
                         [0, math.cos(theta), -math.sin(theta)],
                         [0, math.sin(theta), math.cos(theta)]])
-    return x_axis_rot
 
 def y_rotate(theta):
-    x_axis_rot = np.array([[math.cos(theta), 0, math.sin(0)],
+    return np.array([[math.cos(theta), 0, -math.sin(theta)],
                         [0, 1, 0],
-                        [-math.sin(theta), 0, math.cos(theta)]])
-    return x_axis_rot
+                        [math.sin(theta), 0, math.cos(theta)]])
+
+# Calculate rotation for focus
+def set_rotation(focusDistance):
+    global rotation
+    c = math.sqrt(left_eye_transform[:, 3][0]**2 + focusDistance**2)
+    rotation = math.pi / 2 - math.asin(focusDistance / c)
+    if args.debug:
+        print("Rotating vision by :", rotation, "radians")
 
 # VR Utils
 def vr_server_setup():
@@ -69,14 +76,13 @@ def vr_server_setup():
 
 # Sends *current* coordinates to instant-ngp pipe for each eye
 def vr_server_send_coords_stereo(handle):
-    # initial_matrix is an np.ndarray
     poses = []
     poses, _ = openvr.VRCompositor().waitGetPoses(poses, None)
     hmd_pose = poses[openvr.k_unTrackedDeviceIndex_Hmd]
 
     hmd = convert_to_numpy(hmd_pose.mDeviceToAbsoluteTracking)
-    left_eye_matrix = np.hstack((y_rotate(rotation) @ hmd[:3, :3], np.array([hmd[:, 3] + left_eye_transform[:, 3]]).T))
-    right_eye_matrix = np.hstack((y_rotate(-rotation) @ hmd[:3, :3], np.array([hmd[:, 3] + right_eye_transform[:, 3]]).T))
+    left_eye_matrix = np.hstack((y_rotate(-rotation) @ hmd[:3, :3], np.array([hmd[:, 3] + hmd[:3, :3] @ left_eye_transform[:, 3]]).T))
+    right_eye_matrix = np.hstack((y_rotate(rotation) @ hmd[:3, :3], np.array([hmd[:, 3] + hmd[:3, :3] @ right_eye_transform[:, 3]]).T))
     left_eye_matrix = convert_to_hmdmatrix(left_eye_matrix)
     right_eye_matrix = convert_to_hmdmatrix(right_eye_matrix)
 
@@ -84,6 +90,14 @@ def vr_server_send_coords_stereo(handle):
     right_bytes = win32file.WriteFile(handle, bytes(right_eye_matrix))
 
     if args.debug:
+        print()
+        print('Stock left eye transform', left_eye_transform[:, 3])
+        print('Rotated left eye trnsfrm', hmd[:3, :3] @ left_eye_transform[:, 3])
+        print()
+        print()
+        print('Stock right eye transform', right_eye_transform[:, 3])
+        print('Rotated right eye trnsfrm', hmd[:3, :3] @ right_eye_transform[:, 3])
+        print()
         print("Sent", left_bytes, "for left matrix")
         print("Sent", right_bytes, "for right matrix")
 
@@ -145,13 +159,14 @@ def main():
     assert openvr.VRCompositor()
     if not args.stereo:
         overlay = openvr.VROverlay()
-
+    
     #create SERVER
     vr_server_handle = vr_server_setup()
     global left_eye_transform
     global right_eye_transform
     left_eye_transform = convert_to_numpy(vr_sys.getEyeToHeadTransform(0))
     right_eye_transform = convert_to_numpy(vr_sys.getEyeToHeadTransform(1))
+    set_rotation(args.focus_distance)
     
     #client CONNECTED
     print("waiting for client")

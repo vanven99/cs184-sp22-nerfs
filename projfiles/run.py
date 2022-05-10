@@ -372,6 +372,7 @@ if __name__ == "__main__":
 			vr_matrix[:, 3] *= args.translation_scale
 
 			vr_matrix = np.multiply(vr_matrix, negation_matrix)
+
 			# Calculate transform from initial position to initial camera position
 			transform_matrix = initial_camera[:3, :3] @ np.linalg.inv(vr_matrix[:3, :3])
 
