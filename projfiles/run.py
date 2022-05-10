@@ -59,7 +59,7 @@ def parse_args():
 	parser.add_argument("--vr", default=False, help="Enable vr", action='store_true')
 	parser.add_argument("--stereo", default=False, help="Enables stereo imaging for VR (must also be enabled for pyopenvr.py)", action='store_true')
 	parser.add_argument("--translation_scale", default=3, type=float, help="Scales positional movement in VR")
-	parser.add_argument("--camera_offset", nargs='+', default=[0, 0, 0], type=int, help="Offset of initial camera position (xyz)")
+	parser.add_argument("--camera_offset", nargs='+', default=[0, 0, 0], type=float, help="Offset of initial camera position (xyz)")
 	parser.add_argument("--initial_rotation", nargs='+', default=[0, 0, 0], type=int, help="Additional rotation of initial camera position (xyz)")
 
 	args = parser.parse_args()
@@ -383,9 +383,9 @@ if __name__ == "__main__":
 			 						   [0., 0., 1., 0.]])
 
 			# Translates coordinate systems
-			negation_matrix = np.array([[-1, 1, -1, 1],
-										[-1, 1, -1, 1],
-										[-1, 1, -1, 1]])
+			negation_matrix = np.array([[-1, 1, -1, -1],
+										[-1, 1, -1, -1],
+										[-1, 1, -1, -1]])
 
 			# Calculate initial camera position
 			camera_offset = np.array(args.camera_offset)
@@ -424,8 +424,8 @@ if __name__ == "__main__":
 					transformed_right_rotation = transform_matrix @ right_matrix[:3, :3]
 
 					# Concatenate translations, add camera offset, scale translation
-					left_eye_matrix = np.hstack((transformed_left_rotation, np.array([camera_offset + args.translation_scale * left_matrix[:, 3]]).T))
-					right_eye_matrix = np.hstack((transformed_right_rotation, np.array([camera_offset + args.translation_scale * right_matrix[:, 3]]).T))
+					left_eye_matrix = np.hstack((transformed_left_rotation, np.array([camera_offset + args.translation_scale * transform_matrix @ left_matrix[:, 3]]).T))
+					right_eye_matrix = np.hstack((transformed_right_rotation, np.array([camera_offset + args.translation_scale * transform_matrix @ right_matrix[:, 3]]).T))
 
 					# Roll to account for nerf to ngp translation
 					new_camera_l = np.roll(left_eye_matrix, 1, axis=0)
@@ -469,7 +469,7 @@ if __name__ == "__main__":
 					transformed_vr_matrix = transform_matrix @ vr_matrix[:3, :3]
 
 					# Concatenate translation, add camera offset, scale translation
-					vr_matrix = np.hstack((transformed_vr_matrix, np.array([camera_offset + args.translation_scale * vr_matrix[:, 3]]).T))
+					vr_matrix = np.hstack((transformed_vr_matrix, np.array([camera_offset + args.translation_scale * transform_matrix @ vr_matrix[:, 3]]).T))
 
 					# Roll to account for nerf to ngp translation
 					new_camera = np.roll(vr_matrix, 1, axis=0)
