@@ -17,8 +17,8 @@ args = {}
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Run a VR Viewer for Instant-NGP")
-    parser.add_argument("--size", default=200, type=int, help="The resolution of the input image")
-    parser.add_argument("--stereo", default=False, help="Enable stereo imaging", action='store_true')
+    parser.add_argument("--size", default=200, type=int, help="The resolution of the input image (default 200)")
+    parser.add_argument("--stereo", default=False, help="Enable stereo imaging (must also be enabled for run.py)", action='store_true')
     parser.add_argument("--debug", default=False, help="Enable debug logging", action='store_true')
     parser.add_argument("--focus_distance", default=1, type=float, help="Distance to focus eyes, in meters")
 

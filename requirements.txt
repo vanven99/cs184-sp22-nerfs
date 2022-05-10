@@ -1,0 +1,6 @@
+numpy==1.22.3
+openvr==1.16.802
+Pillow==9.1.0
+pyglet==1.5.23
+PyOpenGL==3.1.6
+pywin32==304
