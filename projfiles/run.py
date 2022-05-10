@@ -48,7 +48,7 @@ def parse_args():
 
 	parser.add_argument("--width", "--screenshot_w", type=int, default=0, help="Resolution width of GUI and screenshots.")
 	parser.add_argument("--height", "--screenshot_h", type=int, default=0, help="Resolution height of GUI and screenshots.")
-	parser.add_argument("--size", type=int, default=0, help="Sets height and width simultaneously")
+	parser.add_argument("--size", type=int, default=0, help="Sets height and width simultaneously (default 200 if vr enabled")
 
 	parser.add_argument("--gui", action="store_true", help="Run the testbed GUI interactively.")
 	parser.add_argument("--train", action="store_true", help="If the GUI is enabled, controls whether training starts immediately.")
@@ -56,8 +56,8 @@ def parse_args():
 
 	parser.add_argument("--sharpen", default=0, help="Set amount of sharpening applied to NeRF training images.")
 
-	parser.add_argument("--vr", default=False, help="enable vr", action='store_true')
-	parser.add_argument("--stereo", default=False, help="Enables stereo imaging for VR", action='store_true')
+	parser.add_argument("--vr", default=False, help="Enable vr", action='store_true')
+	parser.add_argument("--stereo", default=False, help="Enables stereo imaging for VR (must also be enabled for pyopenvr.py)", action='store_true')
 	parser.add_argument("--translation_scale", default=3, type=float, help="Scales positional movement in VR")
 	parser.add_argument("--camera_offset", nargs='+', default=[0, 0, 0], type=int, help="Offset of initial camera position (xyz)")
 	parser.add_argument("--initial_rotation", nargs='+', default=[0, 0, 0], type=int, help="Additional rotation of initial camera position (xyz)")
@@ -88,6 +88,9 @@ if __name__ == "__main__":
 	if args.size:
 		args.width = args.size
 		args.height = args.size
+	elif args.vr:
+		args.width = 200
+		args.height = 200
 
 	if args.mode == "":
 		if args.scene in scenes_sdf:
