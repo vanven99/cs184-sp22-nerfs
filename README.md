@@ -8,7 +8,7 @@
 * A VR headset compatible with SteamVR
 * A NVIDIA GPU capable of running Instant-NGP (we recommend RTX 3080+)
 
- Installation and Usage
+### Installation and Usage
 
 1. Install dependencies from requirements.txt
 ```bash
