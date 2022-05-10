@@ -14,6 +14,7 @@ from xmlrpc.client import Boolean
 import commentjson as json
 
 import numpy as np
+import math
 
 from common import *
 from scenes import scenes_nerf, scenes_image, scenes_sdf, scenes_volume, setup_colored_sdf
@@ -58,9 +59,27 @@ def parse_args():
 	parser.add_argument("--vr", default=False, help="enable vr", action='store_true')
 	parser.add_argument("--stereo", default=False, help="Enables stereo imaging for VR", action='store_true')
 	parser.add_argument("--translation_scale", default=3, type=float, help="Scales positional movement in VR")
+	parser.add_argument("--camera_offset", nargs='+', default=[0, 0, 0], type=int, help="Offset of initial camera position (xyz)")
+	parser.add_argument("--initial_rotation", nargs='+', default=[0, 0, 0], type=int, help="Additional rotation of initial camera position (xyz)")
 
 	args = parser.parse_args()
 	return args
+
+# Rotation helpers
+def z_rotate(theta):
+    return np.array([[math.cos(theta), -math.sin(theta), 0],
+                        [math.sin(theta), math.cos(theta), 0],
+                        [0, 0, 1]])
+
+def x_rotate(theta):
+    return np.array([[1, 0, 0],
+                        [0, math.cos(theta), -math.sin(theta)],
+                        [0, math.sin(theta), math.cos(theta)]])
+
+def y_rotate(theta):
+    return np.array([[math.cos(theta), 0, -math.sin(theta)],
+                        [0, 1, 0],
+                        [math.sin(theta), 0, math.cos(theta)]])
 
 
 if __name__ == "__main__":
@@ -349,27 +368,33 @@ if __name__ == "__main__":
 			0,
 			None
             )
-			
+
+		
 			#WAIT FOR CLIENT
 			print("waiting for client")
 			win32pipe.ConnectNamedPipe(pipe_to_vr, None)
 			print("got client")
 			
-			initial_camera = np.array([[1, 0, 0, 0],
-			                            [0, -1, 0, 0],
-			 						   [0, 0, 1, 0]])
+			initial_camera = np.array([[1., 0., 0., 0.],
+			                            [0., -1., 0., 0.],
+			 						   [0., 0., 1., 0.]])
 
 			# Translates coordinate systems
 			negation_matrix = np.array([[-1, 1, -1, 1],
 										[-1, 1, -1, 1],
 										[-1, 1, -1, 1]])
 
+			# Calculate initial camera position
+			camera_offset = np.array(args.camera_offset)
+			initial_rotation = np.array(args.initial_rotation)
+			initial_rotation = initial_rotation * np.pi / 180.
+
+			initial_camera[:3, :3] = x_rotate(initial_rotation[0]) @ y_rotate(initial_rotation[1]) @ z_rotate(initial_rotation[2]) @ initial_camera[:3, :3]
+
 			# Read initial headset position
 			hmd_bytes = win32file.ReadFile(handle, 48)
 			camera_coord_array = np.frombuffer(hmd_bytes[1], dtype=np.float32)
 			vr_matrix = camera_coord_array.reshape((3, 4)).copy()
-
-			vr_matrix[:, 3] *= args.translation_scale
 
 			vr_matrix = np.multiply(vr_matrix, negation_matrix)
 
@@ -395,17 +420,13 @@ if __name__ == "__main__":
 					transformed_left_rotation = transform_matrix @ left_matrix[:3, :3]
 					transformed_right_rotation = transform_matrix @ right_matrix[:3, :3]
 
-					# Concatenate translations
-					left_eye_matrix = np.hstack((transformed_left_rotation, np.array([left_matrix[:, 3]]).T))
-					right_eye_matrix = np.hstack((transformed_right_rotation, np.array([right_matrix[:, 3]]).T))
+					# Concatenate translations, add camera offset, scale translation
+					left_eye_matrix = np.hstack((transformed_left_rotation, np.array([camera_offset + args.translation_scale * left_matrix[:, 3]]).T))
+					right_eye_matrix = np.hstack((transformed_right_rotation, np.array([camera_offset + args.translation_scale * right_matrix[:, 3]]).T))
 
 					# Roll to account for nerf to ngp translation
 					new_camera_l = np.roll(left_eye_matrix, 1, axis=0)
 					new_camera_r = np.roll(right_eye_matrix, 1, axis=0)
-
-					# Scale translations
-					new_camera_l[:, 3] *= args.translation_scale
-					new_camera_r[:, 3] *= args.translation_scale
 
 					# Render images
 					testbed.set_nerf_camera_matrix(new_camera_l)
@@ -444,14 +465,11 @@ if __name__ == "__main__":
 					# Transform current position to camera space
 					transformed_vr_matrix = transform_matrix @ vr_matrix[:3, :3]
 
-					# Concatenate translations
-					vr_matrix = np.hstack((transformed_vr_matrix, np.array([vr_matrix[:, 3]]).T))
+					# Concatenate translation, add camera offset, scale translation
+					vr_matrix = np.hstack((transformed_vr_matrix, np.array([camera_offset + args.translation_scale * vr_matrix[:, 3]]).T))
 
 					# Roll to account for nerf to ngp translation
 					new_camera = np.roll(vr_matrix, 1, axis=0)
-
-					# Scale translations
-					new_camera[:, 3] *= args.translation_scale
 
 					# Render images
 					testbed.set_nerf_camera_matrix(new_camera)
