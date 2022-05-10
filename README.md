@@ -66,7 +66,8 @@ optional arguments:
 ```
 
 ### Current issues
-* Tracking is currently not one-to-one with headset movement
+* Tracking is currently not one-to-one with headset movement (possible causes: FOV, translation scaling)
+* Image fading out in stereo (possible cause: low framerate)
 
 ### Future work
 * Using light fields to speed up rendering
