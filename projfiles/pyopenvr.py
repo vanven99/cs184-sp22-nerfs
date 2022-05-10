@@ -90,14 +90,6 @@ def vr_server_send_coords_stereo(handle):
     right_bytes = win32file.WriteFile(handle, bytes(right_eye_matrix))
 
     if args.debug:
-        print()
-        print('Stock left eye transform', left_eye_transform[:, 3])
-        print('Rotated left eye trnsfrm', hmd[:3, :3] @ left_eye_transform[:, 3])
-        print()
-        print()
-        print('Stock right eye transform', right_eye_transform[:, 3])
-        print('Rotated right eye trnsfrm', hmd[:3, :3] @ right_eye_transform[:, 3])
-        print()
         print("Sent", left_bytes, "for left matrix")
         print("Sent", right_bytes, "for right matrix")
 
@@ -109,7 +101,7 @@ def vr_server_send_coords(handle):
     sent_bytes = win32file.WriteFile(handle, bytes(hmd_pose.mDeviceToAbsoluteTracking))
 
     if args.debug:
-        print("Sent", sent_bytes, "for left matrix")
+        print("Sent", sent_bytes, "for hmd matrix")
 
 # Sends specified matrix to instant-ngp pipe
 def vr_server_send_matrix(handle, matrix):
@@ -166,7 +158,9 @@ def main():
     global right_eye_transform
     left_eye_transform = convert_to_numpy(vr_sys.getEyeToHeadTransform(0))
     right_eye_transform = convert_to_numpy(vr_sys.getEyeToHeadTransform(1))
-    set_rotation(args.focus_distance)
+
+    if args.stereo:
+        set_rotation(args.focus_distance)
     
     #client CONNECTED
     print("waiting for client")
