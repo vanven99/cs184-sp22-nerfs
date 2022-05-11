@@ -94,7 +94,7 @@ OpenVR and Instant-NGP use different coordinate systems. In OpenVR, the camera i
 </p>
 
 <p>
-Both systems use similar matrix conventions to define the camera positions; they use 3x4 matrices where the first 3 columns define the x, y, z and the 4th column describes an xyz translation from the origin.
+Both systems use similar matrix conventions to define the camera positions; they use 3x4 matrices where the first 3 columns define the x, y, z rotation and the 4th column describes an xyz translation from the origin.
 </p>
 <p>
 $$\begin{bmatrix}
@@ -115,7 +115,7 @@ $$\begin{bmatrix}
 \end{bmatrix} $$
 </p>
 <p>
-where only the first 3 columns represent the rotation. Then, using $H$ to represent the initial headset rotation and $C_{init}$ as the initial camera rotation, we can simply find a transform between headset space and NeRF space:
+where only the first 3 columns represent the rotation. Then, using \(H\) to represent the initial headset rotation and \(C_{init}\) as the initial camera rotation, we can simply find a transform between headset space and NeRF space:
 </p>
 <p>
   $$
@@ -128,10 +128,10 @@ X = C_{init}\cdot H^{-1} \\
 $$
 </p>
 <p>
-  For every subsequent headset position, we multiply $X \cdot H$ to get the headset rotation in camera space.
+  For every subsequent headset position, we multiply \(X \cdot H\) to get the headset rotation in camera space.
 </p>
 <p>
-  To calculate the translation, we multiply the headset’s xyz position by a passed in scaling factor to account for the difference in scale between the headset coordinate system and the NeRF’s. We then concatenate this to the calculated headset rotation in camera-space.
+  To calculate the translation, we multiply the headset’s xyz position by a passed in scaling factor to account for the difference in scale between the headset coordinate system and the NeRFs. We then concatenate this to the calculated headset rotation in camera-space.
 </p>
 <p>
   $$
@@ -169,7 +169,7 @@ To implement stereo imaging, we must calculate a view matrix for each eye and us
   <img src="./images/IPD.PNG">
 </center>
 <p>
-  We can then solve for $theta$ using triangle equations:
+  We can then solve for \(\theta\) using triangle equations:
 </p>
 <p>
   $$\theta = \arcsin{(\frac{IPD/2}{\sqrt{(IPD/2)^2 + x^2}})}$$
