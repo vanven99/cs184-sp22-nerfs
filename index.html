@@ -12,7 +12,9 @@
     color: #121212;
   }
   h1, h2, h3, h4 {
-    font-family: 'Source Sans Pro', sans-serif;
+    font-family: 'Roboto Condensed', sans-serif;
+    font-style: none;
+    font-weight: none;
   }
   #table {
   background: white;
@@ -27,10 +29,22 @@
 #table tr:nth-child(even){background-color: #f2f2f2;}
 #table tbody tr:hover {background-color: #ddd;}
 #table tfoot tr:hover {background-color: #ddd;}
+.flexbox {
+  display: flex;
+  justify-content: space-around;
+}
+.flex-row {
+  flex-flow: row wrap;
+}
 </style>
-<title>CS 184 Spring 2022 Final Project</title>
+<title>VRNeRF - CS 184 Sp22 Final Project</title>
 <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="ie=edge">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css?family=Open+Sans|Source+Sans+Pro" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@300&display=swap" rel="stylesheet"> 
 <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
 
 <script type="text/x-mathjax-config">
@@ -53,8 +67,17 @@
 
 <body>
 
-<h1 align="middle">Neural Radiance Field with Virtual Reality</h1>
-<h2 align="middle">Team Members: Abhik Ahuja, Cyrus Hamirani, Michael Van Luven, Gavin Fure</h2>
+<h1 align="middle">VRNeRF</h1>
+<h2 align="middle">A VR Viewer for Nvidia's Instant-NGP</h2>
+<h3 align="middle">
+  Team 14 <br/>
+  <div class="flexbox flex-row">
+    <div>Abhik Ahuja</div>
+    <div>Cyrus Hamirani</div>
+    <div>Michael Van Luven</div>
+    <div>Gavin Fure</div>
+  </div>
+</h2>
 
 <br><br>
 
