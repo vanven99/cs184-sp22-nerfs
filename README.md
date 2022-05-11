@@ -1,6 +1,6 @@
-# VRNeRF
+# VRNeRFs
 
-## A VR Viewer for Nvidia's Instant-NGP
+## A VR Viewer for Neural Radiance Fields
 
 ### Requirements
 
