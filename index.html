@@ -245,7 +245,7 @@
         matrix, we first resolve the differences between the Instant-NGP and OpenVR camera coordinate systems.
         Instant-NGP then generates an image from a trained NeRF model and sends the queried image as bytes to the VR
         headset. This image data is interpreted by our OpenVR script and is used to create an OpenGL texture, which is
-        then applied to a VR overlay (or, in the case of stereo, submitted to both eyes via the OpeNVR compositor). This
+        then applied to a VR overlay (or, in the case of stereo, submitted to both eyes via the OpenVR compositor). This
         overlay is placed in front of the user’s eyes in VR.
       </p>
       <p>
@@ -255,7 +255,7 @@
     <h2 align="middle">Technical Details - Named Pipes</h2>
     <div class="section">
       <p>
-        To enable interprocess communication we decided to use named pipes, which allows programs to read and send bytes
+        To enable interprocess communication we decided to use named pipes, which allow programs to read and send bytes
         in a server-client relationship. During runtime the OpenVR script and Instant-NGP engage in a connection
         handshake, ensuring that both programs are ready to receive and send their respective information. This
         handshake is modeled below.
@@ -276,7 +276,7 @@
       <p>
         OpenVR and Instant-NGP use different coordinate systems. In OpenVR, the camera is oriented toward the negative z
         direction, positive x is towards the right, and positive y faces up. However, in Instant-NGP, the coordinate
-        system has the y and z directions reversed relative to OpenVR. Therefore, we had to find a way to transform
+        system has the z axis reversed relative to OpenVR. Therefore, we had to find a way to transform
         between the two systems to ensure that we could accurately track the Instant-NGP camera’s movements to the
         movements of the VR headset.
       </p>
@@ -291,13 +291,29 @@
         X_{rot} & Y_{rot} & Z_{rot} & y_{pos}\\
         \rule[-1ex]{0.5pt}{2.5ex} & \rule[-1ex]{0.5pt}{2.5ex} & \rule[-1ex]{0.5pt}{2.5ex} & z_{pos}\\
         \end{bmatrix}$$
+      </p>
 
+      <p>
+        When transforming from headset-space to NeRF-space coordinates, we first need to negate the relevant axes so
+        both systems move in the same direction. Given the headset position matrix, we can do this by negating the
+        translation vector, as well as the relevant rotation columns. However, in implementation, the Instant-NGP code
+        processes the camera position matrix by negating certain rotation vectors. Therefore, we found that we only
+        needed to negate the x and z rotation vectors to correct these axes. We were able to achieve these negations by
+        multiplying the headset position elementwise with a negation matrix:
       </p>
       <p>
-        When transforming from headset-space to NeRF-space coordinates, we wanted to make sure that the viewer always
-        started in the same orientation in NeRF-space. In order to achieve this, we defined an initial camera matrix
-        that we thought was a good starting point. For us, that was:
+        $$ \begin{bmatrix}
+        -1 & 1 & -1 & -1\\
+        -1 & 1 & -1 & -1\\
+        -1 & 1 & -1 & -1
+        \end{bmatrix} $$
+
       </p>
+      We then wanted to make sure that the viewer always
+      started in the same orientation in NeRF-space. We started by defining an initial camera matrix
+      that we thought was a good starting point. For us, that was:
+      </p>
+
       <p>
         $$ \begin{bmatrix}
         1 & 0 & 0 & 0\\
@@ -321,11 +337,12 @@
         $$
       </p>
       <p>
-        For every subsequent headset position, we multiply \(X \cdot H\) to get the headset rotation in camera space.
+        For every subsequent headset position \(H_t\), we multiply \(X \cdot H_t\) to get the headset rotation in camera space.
       </p>
       <p>
         To calculate the translation, we multiply the headset’s xyz position by a passed in scaling factor to account
-        for the difference in scale between the headset coordinate system and the NeRFs. We then concatenate this to the
+        for the difference in scale between the headset coordinate system and the NeRFs. We rotate it using the same
+        transformation matrix \(X\) to acount for the difference in coordinate systems. We then concatenate this to the
         calculated headset rotation in camera-space.
       </p>
       <p>
@@ -385,8 +402,8 @@
       <p>
         To sync the image for each eye we made sure that the images for each eye were rendered using the same headset
         pose. On program startup the initial headset pose is first sent to Instant-NGP to calculate the transform
-        matrix. Both eye positions are then calculated and sent to Instant-NGP. These are then used to render two images
-        and sent to OpenVR, and this process continues until program termination.
+        matrix. Both eye positions are then calculated and sent to Instant-NGP. These are used to render two images
+        which are sent to OpenVR, and this process continues until program termination.
       </p>
     </div>
 
@@ -532,6 +549,7 @@
           <td> <img src="./images/andrewmono.gif" width="100%"> </td>
         </tr>
       </table>
+      <em style="margin-top: 10px;">Above: A series of VR views where a single image is rendered per frame and displayed to both eyes. The ficus (top middle) and fox (top right) scenes are from the Instant-NGP datasets. The others are trained from our own data.</em>
     </div>
 
     <h3 align="middle">Stereo</h3>
@@ -547,6 +565,7 @@
         <td> <img src="./images/andrewstereo.gif" width="100%"> </td>
       </tr>
     </table>
+      <em style="margin-top: 10px;">Above: A series of VR views where an image is rendered per eye and displayed to create a stereo depth effect. The ficus (top middle) and fox (top right) scenes are from the Instant-NGP datasets. The others are trained from our own data.</em>
   </div>
 
   <h2 align="middle">Lessons Learned / Issues Faced</h2>
@@ -569,7 +588,7 @@
   <h2 align="middle">Future Work</h2>
   <div class="section">
     <p>
-      Light field rendering for performance - One way to speed up performance could be extracting a learned lightfield
+      Light field rendering - One way to speed up performance could be extracting a learned lightfield
       from a NeRF, and rendering views from that, rather than continually querying the NeRF for image data.
     </p>
     <p>
