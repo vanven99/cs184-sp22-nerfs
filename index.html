@@ -53,6 +53,7 @@
     .flexbox {
       display: flex;
       justify-content: space-around;
+      max-width: 100%;
     }
 
     .flex-row {
@@ -173,7 +174,7 @@
 
 <body>
 
-  <h1 align="middle">VRNeRFs</h1>
+  <h1 align="middle" id="title">VRNeRFs</h1>
   <h2 align="middle">A VR Viewer for Neural Radiance Fields</h2>
   <h3 align="middle">
     Team 14 <br />
@@ -549,7 +550,7 @@
           <td> <img src="./images/andrewmono.gif" width="100%"> </td>
         </tr>
       </table>
-      <em style="margin-top: 10px;">Above: A series of VR views where a single image is rendered per frame and displayed to both eyes. The ficus (top middle) and fox (top right) scenes are from the Instant-NGP datasets. The others are trained from our own data.</em>
+      <em style="margin-top: 10px;">Above: A series of VR views where a single image is rendered per frame and displayed to both eyes. The ficus (top middle) and fox (top right) scenes are from the Instant-NGP and NeRF datasets. The others are trained from our own data.</em>
     </div>
 
     <h3 align="middle">Stereo</h3>
@@ -565,7 +566,7 @@
         <td> <img src="./images/andrewstereo.gif" width="100%"> </td>
       </tr>
     </table>
-      <em style="margin-top: 10px;">Above: A series of VR views where an image is rendered per eye and displayed to create a stereo depth effect. The ficus (top middle) and fox (top right) scenes are from the Instant-NGP datasets. The others are trained from our own data.</em>
+      <em style="margin-top: 10px;">Above: A series of VR views where an image is rendered per eye and displayed to create a stereo depth effect. The ficus (top middle) and fox (top right) scenes are from the Instant-NGP and NeRF datasets. The others are trained from our own data.</em>
   </div>
 
   <h2 align="middle">Lessons Learned / Issues Faced</h2>
